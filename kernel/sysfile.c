@@ -503,3 +503,30 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64 sys_sigalarm(void) {
+  int ticks;
+  void (*handler)();
+  struct proc *p = myproc();
+
+  argint(0, &ticks);
+  argaddr(1, (uint64 *)&handler);
+
+  p->alarm_ticks = ticks;
+  p->alarm_handler = handler;
+
+  debug_printf("alarm_ticks: %d, alarm_handler: %p\n", p->alarm_ticks,
+               p->alarm_handler);
+  return 0;
+}
+
+uint64 sys_sigreturn(void) {
+  struct proc *p = myproc();
+
+  memmove(p->trapframe, p->alarm_saved_tf, sizeof(struct trapframe));
+  kfree(p->alarm_saved_tf);
+  p->alarm_saved_tf = (void *)0;
+  p->in_handler = 0;
+
+  return p->trapframe->a0;
+}
