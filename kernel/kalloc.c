@@ -30,6 +30,8 @@ kinit()
   freerange(end, (void*)PHYSTOP);
 }
 
+/// 初始化物理内存， 将物理内存划分为4096字节大小的页， 并将其加入到空闲链表中
+/// 之后kalloc() 会从先分配高地址的页
 void
 freerange(void *pa_start, void *pa_end)
 {

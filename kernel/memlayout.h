@@ -50,6 +50,7 @@
 
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.
+// 比如第一个kernel process, p为0, 则kstack地址为TRAMPOLINE - 2*PGSIZE
 #define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)
 
 // User memory layout.

@@ -13,7 +13,8 @@ pagetable_t kernel_pagetable;
 
 extern char etext[];  // kernel.ld sets this to end of kernel code.
 
-extern char trampoline[]; // trampoline.S
+// trampoline.S 中把trampoline放在trampsec段, kernel.ld中把trampsec段放在.text中
+extern char trampoline[];
 
 // Make a direct-map page table for the kernel.
 pagetable_t
@@ -24,6 +25,7 @@ kvmmake(void)
   kpgtbl = (pagetable_t) kalloc();
   memset(kpgtbl, 0, PGSIZE);
 
+  // 这边kernel虚拟地址到物理地址的映射参考xv6_ch3_PageTable.md中3.2的映射图
   // uart registers
   kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -41,6 +43,7 @@ kvmmake(void)
 
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
+  // 把TRAMPOLINE虚拟地址映射到trampoline物理地址
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
   // allocate and map a kernel stack for each process.
@@ -82,29 +85,36 @@ kvminithart()
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
+/// 给一个虚拟地址va, 返回对应的pte
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
   if(va >= MAXVA)
     panic("walk");
 
-  for(int level = 2; level > 0; level--) {
+  for (int level = 2; level > 0; level--) {
+    /// 根据虚拟地址前两段level中index, 找到对应page table中的pte
     pte_t *pte = &pagetable[PX(level, va)];
-    if(*pte & PTE_V) {
+    if (*pte & PTE_V) {
+      /// 如果pte存在， 根据PPN找到下一级page table地址
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
-      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
+      /// 如果pte不存在， 则分配新的4K大小page table
+      if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
         return 0;
       memset(pagetable, 0, PGSIZE);
+      // 把该page table对应的上一层page table的pte valid
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
+  /// 返回虚拟地址va对应的最后一级页表的pte
   return &pagetable[PX(0, va)];
 }
 
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
+// 根据虚拟地址va, 返回对应的物理地址pa，如果va没有映射， 则返回0
 uint64
 walkaddr(pagetable_t pagetable, uint64 va)
 {
@@ -128,6 +138,7 @@ walkaddr(pagetable_t pagetable, uint64 va)
 // add a mapping to the kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
+/// 把va虚拟地址映射到pa物理地址， 并设置为perm权限
 void
 kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 {
@@ -157,11 +168,14 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   
   a = va;
   last = va + size - PGSIZE;
+  /// 遍历va到last的每一页，把对应的pte设置为perm|PTE_V
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
       panic("mappages: remap");
+    /// 把pa的物理地址存放在va对应的最后一级page table的pte中, 并设置perm权限,
+    /// 只有最后一级页表的pte需要设置perm权限
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
