@@ -1,0 +1,20 @@
+{
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  "clangd.arguments": [
+    "--log=error",
+    "--header-insertion=never",
+    // "--compile-commands-dir=."
+  ],
+  "editor.inlayHints.enabled": "offUnlessPressed",
+"C_Cpp.intelliSenseEngine": "disabled",
+"files.trimTrailingWhitespace": false,
+"editor.formatOnSaveMode": "file",
+"editor.formatOnSave": true,
+"editor.tabSize": 8,
+"editor.insertSpaces": false,
+}
